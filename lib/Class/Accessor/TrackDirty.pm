@@ -3,7 +3,7 @@ use 5.008_001;
 use strict;
 use warnings;
 use Storable qw(dclone freeze);
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 our $RESERVED_FIELD = '_original';
 our $NEW = 'new';
@@ -112,8 +112,8 @@ sub _mk_helpers($) {
             } @$tracked_fields, @$fields),
         );
 
-        # rewrite the caller directly
-        $_[0] = (ref $self)->from_hash(\%hash);
+        # Move published data for cleaning.
+        $self->{$RESERVED_FIELD}{$_} = delete $self->{$_} for @$tracked_fields;
 
         return \%hash;
     };
