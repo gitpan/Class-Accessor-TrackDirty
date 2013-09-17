@@ -3,7 +3,7 @@ use 5.008_001;
 use strict;
 use warnings;
 use Storable qw(dclone freeze);
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 our $RESERVED_FIELD = '_original';
 our $NEW = 'new';
@@ -183,6 +183,8 @@ sub mk_new_and_tracked_accessors {
 
 1;
 __END__
+
+=encoding utf-8
 
 =head1 NAME
 
