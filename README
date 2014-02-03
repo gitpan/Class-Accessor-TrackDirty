@@ -46,12 +46,22 @@ INTERFACE
         Check that the instance is modified. If it's true, you should store
         this instance into some place through using "<to_hash"> method.
 
+    "$your_object->is_new;"
+        Checks if the instance might be in a storage. Returns false value
+        when the instance comes from "from_hash" method, or after you call
+        "to_hash" method.
+
     "my $hash_ref = $your_object->to_hash;"
         Eject data from this instance as plain hash-ref format.
         "<$your_object"> is regarded as `clean' after calling this method.
 
         You'd better store "<$hash_ref"> into some place ASAP. It's up to
         you how "<$hash_ref"> should be serialized.
+
+    "$your_object->raw;"
+        Retrieves the row data from the instance. The return value is the
+        same as "to_hash" method, but this method doesn't change the state
+        of the instance.
 
     "my $object = YourClass->from_hash({name1 => "value1", ...});"
         Rebuild the instance from a hash-ref ejected by "<to_hash"> method.

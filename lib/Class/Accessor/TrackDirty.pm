@@ -3,13 +3,15 @@ use 5.008_001;
 use strict;
 use warnings;
 use Storable qw(dclone freeze);
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 our $RESERVED_FIELD = '_original';
 our $NEW = 'new';
 our $FROM_HASH = 'from_hash';
+our $RAW = 'raw';
 our $TO_HASH = 'to_hash';
 our $IS_MODIFIED = 'is_dirty';
+our $IS_NEW = 'is_new';
 our $REVERT = 'revert';
 
 {
@@ -101,7 +103,7 @@ sub _mk_helpers($) {
         bless \%modified, $package;
     };
 
-    *{"$package\::$TO_HASH"} = sub {
+    *{"$package\::$RAW"} = sub {
         my ($self) = @_;
 
         my %hash = (
@@ -112,11 +114,19 @@ sub _mk_helpers($) {
             } @$tracked_fields, @$fields),
         );
 
+        return \%hash;
+    };
+
+    *{"$package\::$TO_HASH"} = sub {
+        my ($self) = @_;
+        my $raw = $self->raw;
+
         # Move published data for cleaning.
+        $self->{$RESERVED_FIELD} ||= {};
         $self->{$RESERVED_FIELD}{$_} = delete $self->{$_}
                               for grep { exists $self->{$_} } @$tracked_fields;
 
-        return \%hash;
+        return $raw;
     };
 
     *{"$package\::$IS_MODIFIED"} = sub {
@@ -129,6 +139,11 @@ sub _mk_helpers($) {
                    _is_different $self->{$_}, $self->{$RESERVED_FIELD}{$_};
         }
         return;
+    };
+
+    *{"$package\::$IS_NEW"} = sub {
+        my $self = shift;
+        exists $self->{$RESERVED_FIELD} ? 0 : 1;
     };
 
     *{"$package\::$REVERT"} = sub {
@@ -248,6 +263,12 @@ Following helper methods will be created automatically.
 Check that the instance is modified. If it's true, you should store this
 instance into some place through using C<<to_hash>> method.
 
+=item C<< $your_object->is_new; >>
+
+Checks if the instance might be in a storage. Returns false value when
+the instance comes from C<from_hash> method, or after you call
+C<to_hash> method.
+
 =item C<< my $hash_ref = $your_object->to_hash; >>
 
 Eject data from this instance as plain hash-ref format.
@@ -255,6 +276,12 @@ C<<$your_object>> is regarded as `clean' after calling this method.
 
 You'd better store C<<$hash_ref>> into some place ASAP. It's up to you how
 C<<$hash_ref>> should be serialized.
+
+=item C<< $your_object->raw; >>
+
+Retrieves the row data from the instance. The return value is the same as
+C<to_hash> method, but this method doesn't change the state of the
+instance.
 
 =item C<< my $object = YourClass->from_hash({name1 => "value1", ...}); >>
 

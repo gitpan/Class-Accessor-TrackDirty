@@ -3,16 +3,16 @@ abstract: 'Define simple entities stored in some places.'
 author:
   - 'Masahiro Honma <hiratara@cpan.org>'
 build_requires:
-  Test::More: 0.98
-  Test::Requires: 0.06
+  Test::More: '0.98'
+  Test::Requires: '0.06'
 configure_requires:
-  Module::Build::Tiny: 0.026
+  Module::Build::Tiny: '0.034'
 dynamic_config: 0
-generated_by: 'Dist::Milla version v1.0.4, Dist::Zilla version 4.300037, CPAN::Meta::Converter version 2.131560'
+generated_by: 'Dist::Milla version v1.0.4, Dist::Zilla version 5.012, CPAN::Meta::Converter version 2.133380'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: 1.4
+  version: '1.4'
 name: Class-Accessor-TrackDirty
 no_index:
   directory:
@@ -23,9 +23,12 @@ no_index:
     - eg
     - examples
 requires:
-  perl: 5.008001
+  perl: '5.008001'
 resources:
   bugtracker: https://github.com/hiratara/p5-Class-Accessor-TrackDirty/issues
   homepage: https://github.com/hiratara/p5-Class-Accessor-TrackDirty
   repository: https://github.com/hiratara/p5-Class-Accessor-TrackDirty.git
-version: 0.04
+version: '0.05'
+x_contributors:
+  - 'Neil Bowers <neil@bowers.com>'
+  - 'hiratara <hiratara@cpan.org>'
