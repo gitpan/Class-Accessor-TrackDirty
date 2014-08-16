@@ -2,8 +2,9 @@ package Class::Accessor::TrackDirty;
 use 5.008_001;
 use strict;
 use warnings;
+use List::MoreUtils qw(any);
 use Storable qw(dclone freeze);
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 our $RESERVED_FIELD = '_original';
 our $NEW = 'new';
@@ -11,6 +12,7 @@ our $FROM_HASH = 'from_hash';
 our $RAW = 'raw';
 our $TO_HASH = 'to_hash';
 our $IS_MODIFIED = 'is_dirty';
+our $MODIFIED_FIELDS = 'dirty_fields';
 our $IS_NEW = 'is_new';
 our $REVERT = 'revert';
 
@@ -18,7 +20,7 @@ our $REVERT = 'revert';
     my %package_info;
     sub _package_info($) {
         my $package = shift;
-        $package_info{$package} ||= {tracked_fields => [], fields => []};
+        $package_info{$package} ||= {tracked_fields => {}, fields => {}};
     }
 }
 
@@ -80,7 +82,7 @@ sub _make_accessor($$) {
 sub _mk_tracked_accessors($@) {
     my $package = shift;
     _make_tracked_accessor $package => $_ for @_;
-    push @{_package_info($package)->{tracked_fields}}, @_;
+    @{(_package_info $package)->{tracked_fields}}{@_} = (1,) x @_;
 }
 
 sub _mk_helpers($) {
@@ -95,7 +97,7 @@ sub _mk_helpers($) {
         my %modified = ref $_[0] eq 'HASH' ? %{$_[0]} : @_;
 
         my %origin;
-        for my $name (@$tracked_fields) {
+        for my $name (keys %$tracked_fields) {
             $origin{$name} = delete $modified{$name} if exists $modified{$name};
         }
 
@@ -111,7 +113,7 @@ sub _mk_helpers($) {
                 # Don't store undefined values.
                 my $v = $self->$_;
                 defined $v ? ($_ => $v) : ();
-            } @$tracked_fields, @$fields),
+            } keys %$tracked_fields, keys %$fields),
         );
 
         return \%hash;
@@ -119,26 +121,31 @@ sub _mk_helpers($) {
 
     *{"$package\::$TO_HASH"} = sub {
         my ($self) = @_;
-        my $raw = $self->raw;
+        my $raw = $self->$RAW;
 
         # Move published data for cleaning.
         $self->{$RESERVED_FIELD} ||= {};
         $self->{$RESERVED_FIELD}{$_} = delete $self->{$_}
-                              for grep { exists $self->{$_} } @$tracked_fields;
+                         for grep { exists $self->{$_} } keys %$tracked_fields;
 
         return $raw;
     };
 
     *{"$package\::$IS_MODIFIED"} = sub {
-        my $self = shift;
+        my ($self, $field) = @_;
+        return any { $self->$IS_MODIFIED($_) } keys %$tracked_fields
+                                                                 unless $field;
+
+        return unless $tracked_fields->{$field};
         return 1 unless defined $self->{$RESERVED_FIELD};
 
-        for (@$tracked_fields) {
-            return 1
-                if exists $self->{$_} &&
-                   _is_different $self->{$_}, $self->{$RESERVED_FIELD}{$_};
-        }
-        return;
+        exists $self->{$field} &&
+               _is_different $self->{$field}, $self->{$RESERVED_FIELD}{$field};
+    };
+
+    *{"$package\::$MODIFIED_FIELDS"} = sub {
+        my $self = shift;
+        grep { $self->$IS_MODIFIED($_) } keys %$tracked_fields;
     };
 
     *{"$package\::$IS_NEW"} = sub {
@@ -148,14 +155,14 @@ sub _mk_helpers($) {
 
     *{"$package\::$REVERT"} = sub {
         my $self = shift;
-        delete $self->{$_} for @$tracked_fields;
+        delete $self->{$_} for keys %$tracked_fields;
     };
 }
 
 sub _mk_accessors($@) {
     my $package = shift;
     _make_accessor $package => $_ for @_;
-    push @{_package_info($package)->{fields}}, @_;
+    @{(_package_info $package)->{fields}}{@_} = (1,) x @_;
 }
 
 sub _mk_new($) {
@@ -224,6 +231,10 @@ Class::Accessor::TrackDirty - Define simple entities stored in some places.
     $user->name('honma'); # I can't make up my mind...
     # ... blabla ...
 
+    # Check the status of fields if needed
+    $user->is_dirty('name') and warn "Did you change name?";
+    my @dirty_fields = $user->dirty_fields;
+
     # Store it only if $user was really modified.
     store_into_someplace($user->to_hash) if $user->is_dirty;
 
@@ -259,9 +270,17 @@ Following helper methods will be created automatically.
 =over 4
 
 =item C<< $your_object->is_dirty; >>
+=item C<< $your_object->is_dirty("field_name"); >>
 
 Check that the instance is modified. If it's true, you should store this
 instance into some place through using C<<to_hash>> method.
+
+When you pass the name of a field, you can know if the field contains the same
+value as the stored object.
+
+=item C<< my @fields = $your_object->dirty_fields; >>
+
+Gets the name of all dirty fields of C<$your_object>.
 
 =item C<< $your_object->is_new; >>
 
